@@ -10,9 +10,9 @@ Download the Python script from the source where you found it or copy the entire
 Step 3: Install Required Libraries
 
 The script uses some external libraries that need to be installed before running it. Open your terminal or command prompt and use the following commands:
-'''
+```
 pip install requests
-'''
+```
 
 Step 4: Prepare Input Data
 
@@ -23,9 +23,9 @@ Make sure that boletos.csv is present in the same directory as the Python script
 Step 5: Run the Script
 
 Open your terminal or command prompt, navigate to the directory containing the Python script and the boletos.csv file, and run the following command:
-'''
+```
 python cedear_analysis.py
-'''
+```
 
 Step 6: Review the Results
 
