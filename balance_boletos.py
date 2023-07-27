@@ -1,7 +1,8 @@
-import csv
 import requests
 import json
 import time
+import pandas as pd
+
 
 def getBoleto(fila):
     return { 
@@ -12,20 +13,20 @@ def getBoleto(fila):
         'Concertacion': fila[4],
         'Liquidacion': fila[5],
         'Cantidad': int(fila[6]),
-        'Precio': conver_to_float(fila[7]),
-        'Bruto': conver_to_float(fila[8]),
-        'Costos Mercado': conver_to_float(fila[9]),
-        'Arancel': conver_to_float(fila[10]),
-        'Neto': conver_to_float(fila[11]),
+        'Precio': fila[7],
+        'Bruto': fila[8],
+        'Costos Mercado': fila[9],
+        'Arancel': fila[10],
+        'Neto': fila[11],
         'Moneda': fila[12]
     }
 
-def map_to_object(a_list):
+def map_to_object(df):
     boletos = list()
-    for element in a_list:
-        boleto_no_usd = getBoleto(element) 
+    for index, row in df.iterrows():
+        boleto_no_usd = getBoleto(row) 
         boleto_con_usd = add_mep_value(boleto_no_usd)
-        boletos.append(boleto_con_usd )
+        boletos.append(boleto_con_usd)
     return boletos
 
 CEDEAR_INSTRUMENT = 'Cedears'
@@ -35,7 +36,6 @@ VENTA = 'VENTA'
 TICKER = 'Ticker'
 GD30 = 'GD30' 
 EPOCH_DAY = 86400
-# AUTHORIZATION = 'BEARER eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MjE1ODI4MzcsInR5cGUiOiJleHRlcm5hbCIsInVzZXIiOiJsbGllbmFyZGd1ZXJyaXNpQGZyYmEudXRuLmVkdS5hciJ9.d48i3_LcrRlJWSHYZxh5n9_JhPipjlwiPxgAz_xWyWJ1HByUm2mNXpp4MoZgjdCNg9uKCNGHaItaAqdxWRjBmg'
 # AMBITO_MEP_HIST_EJ = 'https://mercados.ambito.com//dolarrava/mep/historico-general/2023-06-22/2023-06-23'
 AMBITO_MEP_HIST = 'https://mercados.ambito.com//dolarrava/mep/historico-general/{anio}-{mes}-{dia}/{anio}-{mes}-{dia_sgte}'
 # https://www.reddit.com/r/merval/comments/npi3j8/api_con_informaci%C3%B3n_hist%C3%B3rica_de_cedears/
@@ -59,8 +59,9 @@ def get_dolar_mep_request(anio, mes, dia): # no distingue si recibe '07' ó '7'
     return json.loads(cotizacion_list)[-1]
     
 def es_cedear(ticker):
-    return ticker['Ticker'] != GD30      #TODO: discriminar ONs
-
+    return ticker['Ticker'] != GD30     #TODO: discriminar ONs
+        # 'CEDEAR' not in ticker['Especie'] 
+         
 def add_mep_value(ticker):
     date_list = ticker['Liquidacion'].split("-")
     mep_day = get_dolar_mep(date_list[0], date_list[1], date_list[2])    
@@ -82,8 +83,8 @@ def getStringToday():
 
 def get_dolar_mep_now():
     today_list = getStringToday().split("-")
-    string_mep = get_dolar_mep(today_list[0], today_list[1], int(today_list[2]) - 2) # TODO: fix se rompe cuando va a pedir valor dolar mep un dia [sab, dom y feriados]
-    return conver_to_float(string_mep)
+    string_mep = get_dolar_mep(today_list[0], today_list[1], int(today_list[2]) - 1) # TODO: fix se rompe cuando va a pedir valor dolar mep un dia [sab, dom y feriados] Tambien a la madrugada
+    return convert_to_float(string_mep)
 
 def get_pesos_cedear_value(cedear): # en pesos
     epoch_today= getEpochToday() 
@@ -100,27 +101,28 @@ def get_pesos_cedear_value(cedear): # en pesos
         print("Error with cedear: ", cedear, " with reponse: ", response)
         return -1.0
 #given a sting with comma decimal format ej: 1,5 -> float
-def conver_to_float(string_number):
+def convert_to_float(string_number):
     correct_format_string_number = string_number.replace(",", ".")
     return float(correct_format_string_number)
 
-def cedear_usd_value_now(cedear, cantidad):
+def cedear_usd_value_now(cedear, cantidad, dolar_mep_now):
     one_cedear_in_pesos = get_pesos_cedear_value(cedear)
-    one_cedear_in_mep = one_cedear_in_pesos / get_dolar_mep_now() 
+    one_cedear_in_mep = one_cedear_in_pesos / dolar_mep_now 
     return one_cedear_in_mep * cantidad
 
 # ----------------------------------------------------------------------------------------------------- #
 # TODO: Hacer que el programa reciba x parametro 
-notes = ''
-with open('/home/leanutn/Documentos/balanz manager/boletos.csv', newline='') as f:
-    data = csv.reader(f, delimiter=',')
-    notes = list(data)
-    notes.pop(0) # remove the column nam'2023-07-03', 'Cantidad': '190', 'Precio': '1,05', 'Bruto': '199,5', 'Costos Mercado': '0,51', 'Arancel': '204,68', 'Neto': '200,3', 'Moneda': 'Dólares', 'mep_value': '200,3'}], 'EEM': [{'Especie': 'CEDEAR ISHARES MSCI EMERGING MARKET', 'Num Boleto': '2106859', 'Ticker': 'EEM', 'Tipo': 'COMPRA', 'Concertacion': '2023-06-13', 'Liquidacion': '2023-06-15', 'Cantidad': '12', 'Precio': '8,74', 'Bruto': '104,88', 'Costos Mercado': '25,06', 'Arancel': '125,426', 'Neto': '105,49', 'Moneda': 'Dólares', 'mep_value': '105,49'}], 'JNJ': [{'Especie': 'CEDEAR JOHNSON & JOHSON ESCRIT.', 'Num Boleto': '2106858', 'Ticker': 'JNJ', 'Tipo': 'COMPRA', 'Concertacion': '2023-06-13', 'Liquidacion': '2023-06-15', 'Cantidad': '5', 'Precio': '11,45', 'Bruto': '57,25', 'Costos Mercado': '13,68', 'Arancel': '68,684', 'Neto': '57,58', 'Moneda': 'Dólares', 'mep_value': '57,58'}, {'Especie': 'CEDEAR JOHNSON & JOHSON ESCRIT.', 'Num Boleto': '2085307', 'Ticker': 'JNJ', 'Tipoes
 
+archivo = '/home/leanutn/Documentos/balanz manager/boletos.xlsx'
 
-boletos_list = map_to_object(notes)
+df = pd.read_excel(archivo) #dataframe
 
-cedears_list = list(filter(es_cedear, boletos_list))
+print (df.describe)
+cedears_df = df[es_cedear] # filtro solo me quedo con cedears
+
+cedears_list = map_to_object(cedears_df)
+
+#cedears_list = list(filter(es_cedear, boletos_list))
 
 
 # def gruping_by_tickers(notes):
@@ -149,9 +151,10 @@ print("Cedears dict: ", cedears_dict)
 print(get_dolar_mep_now())
 # mapeear cada objeto. Agregarle un campo de valor en dolares
 # con ese campo en dolares + si COMPRA, - si VENTA 
+dolar_mep = get_dolar_mep_now()
 
 for cedear, values in cedears_dict.items():
-    print(f"{cedear}: {values['Neto']} vs {cedear_usd_value_now(values['Ticker'], values['Cantidad'])}")
+    print(f"{cedear}: {values['Neto']} vs {cedear_usd_value_now(values['Ticker'], values['Cantidad'], dolar_mep)}")
 # tickers = processTickers(notes)
 # print(tickers)
 # print('')
