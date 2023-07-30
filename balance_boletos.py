@@ -1,6 +1,9 @@
 import requests
 import json
 import time
+import datetime
+
+
 import pandas as pd
 
 
@@ -35,9 +38,13 @@ COMPRA = 'COMPRA'
 VENTA = 'VENTA' 
 TICKER = 'Ticker'
 GD30 = 'GD30' 
-EPOCH_DAY = 86400
+MTCGO = 'MTCGO' 
+ON = 'ON' 
+
+EPOCH_DAY = 86400 # seconds in a day
+DAYS_AGO = 4
 # AMBITO_MEP_HIST_EJ = 'https://mercados.ambito.com//dolarrava/mep/historico-general/2023-06-22/2023-06-23'
-AMBITO_MEP_HIST = 'https://mercados.ambito.com//dolarrava/mep/historico-general/{anio}-{mes}-{dia}/{anio}-{mes}-{dia_sgte}'
+AMBITO_MEP_HIST = 'https://mercados.ambito.com//dolarrava/mep/historico-general/{from_date}/{to_date}'
 # https://www.reddit.com/r/merval/comments/npi3j8/api_con_informaci%C3%B3n_hist%C3%B3rica_de_cedears/
 MERVAL_HIST = 'https://analisistecnico.com.ar/services/datafeed/history?symbol={cedear}%3ACEDEAR&resolution=D&from={from_date}&to={to_date}' # dates in epoch
 HEADERS = {'Accept': 'application/json'}
@@ -45,31 +52,41 @@ payload = {}
 
 def get_dolar_mep(anio, mes, dia):
     cotizacion = get_dolar_mep_request(anio, mes, dia) 
-    return cotizacion[-1]
+    return convert_to_float(cotizacion[-1])
     
 
-def get_dolar_mep_request(anio, mes, dia): # no distingue si recibe '07' ó '7' 
-    cotizacion_list = list()
-    URL_MEP  = AMBITO_MEP_HIST.format(anio = anio, mes = mes, dia = dia, dia_sgte = int(dia) + 1)
+def get_dolar_mep_request(anio, mes, dia): # no discrimina si recibe '07' ó '7' 
+    to_date = datetime.datetime(int(anio), int(mes), int(dia) + 1)
+    # pedimos cotizacion de hoy a 4 dias atras porque el mep opera de lun-viernes no feriados
+    from_date = getNDaysAgoDate(to_date, DAYS_AGO)    
+    URL_MEP  = AMBITO_MEP_HIST.format(from_date = from_date, to_date = to_date.date()) 
     response = requests.get(URL_MEP, headers=HEADERS,  data=payload)
+    
     print(response.text)
     if response.status_code == 200:
       cotizacion_list = response.text
-
-    return json.loads(cotizacion_list)[-1]
+    return json.loads(cotizacion_list)[1] #quedamos el 1 porque [["Fecha","Referencia"],["26\/07\/2023","503,90"],["25\/07\/2023","507,12"]
     
 def es_cedear(ticker):
-    return ticker['Ticker'] != GD30     #TODO: discriminar ONs
-        # 'CEDEAR' not in ticker['Especie'] 
+    return (ticker['Ticker'] != GD30)  & ticker['Especie'].map(is_not_ON, na_action='ignore')  #(ticker['Ticker'] != MTCGO)
          
+def is_not_ON(a_string):
+    return a_string.split(" ")[0] != ON 
+
 def add_mep_value(ticker):
     date_list = ticker['Liquidacion'].split("-")
-    mep_day = get_dolar_mep(date_list[0], date_list[1], date_list[2])    
+    mep_at_day = get_dolar_mep(date_list[0], date_list[1], date_list[2])    
     if(ticker['Moneda'] == 'Dólares'):
-        ticker['mep_value'] = ticker['Neto'] #TODO: agregar como seria en pesos y ventas 
-    # elif(ticker['Moneda'] = 'Pesos'):
-        # if(ticker['Tipo'] == COMPRA):
-        #     ticker['mep_value'] = 
+        if(ticker['Tipo'] == COMPRA):
+            ticker['mep_value'] = ticker['Neto'] #TODO: agregar como seria en pesos y ventas 
+        # elif(ticker['Tipo'] == VENTA):
+        #     ticker['mep_value'] = -ticker['Neto']
+        #     ticker['Cantidad'] = -ticker['Cantidad']
+        #     ticker['Neto'] = -ticker['Neto']
+    elif(ticker['Moneda'] == 'Pesos'):
+        if(ticker['Tipo'] == COMPRA):
+            ticker['mep_value'] =  ticker['Neto'] / mep_at_day
+        
         # elif(ticker['Tipo'] == VENTA):
         #     ticker['mep_value'] = 
     return ticker
@@ -81,14 +98,17 @@ def getStringToday():
     named_tuple = time.localtime() # get struct_time
     return time.strftime("%Y-%m-%d", named_tuple)
 
+def getNDaysAgoDate(a_date, n): # datetime should be a datetime
+    daysAgo = datetime.timedelta(days = n)
+    return (a_date - daysAgo).date()
+
 def get_dolar_mep_now():
     today_list = getStringToday().split("-")
-    string_mep = get_dolar_mep(today_list[0], today_list[1], int(today_list[2]) - 1) # TODO: fix se rompe cuando va a pedir valor dolar mep un dia [sab, dom y feriados] Tambien a la madrugada
-    return convert_to_float(string_mep)
+    return get_dolar_mep(today_list[0], today_list[1], int(today_list[2]))
 
 def get_pesos_cedear_value(cedear): # en pesos
     epoch_today= getEpochToday() 
-    MERVAL_URL = MERVAL_HIST.format(cedear = cedear, from_date = epoch_today - 4 * EPOCH_DAY, to_date = epoch_today)
+    MERVAL_URL = MERVAL_HIST.format(cedear = cedear, from_date = epoch_today - DAYS_AGO * EPOCH_DAY, to_date = epoch_today)
     response = requests.get(MERVAL_URL, headers=HEADERS,  data=payload)
    # print("cedear ", cedear, " response: ", response.text)
     if response.status_code == 200:
@@ -143,7 +163,8 @@ for cedear in cedears_list:
         cedear_update['Costos Mercado'] += cedear['Costos Mercado']
         cedear_update['Bruto'] += cedear['Bruto']
         cedear_update['Neto'] += cedear['Neto']
-   
+        cedear_update['mep_value'] += cedear['mep_value']
+           
         cedears_dict[cedear['Ticker']] = cedear_update
 
 
@@ -152,9 +173,20 @@ print(get_dolar_mep_now())
 # mapeear cada objeto. Agregarle un campo de valor en dolares
 # con ese campo en dolares + si COMPRA, - si VENTA 
 dolar_mep = get_dolar_mep_now()
+print("Ultimo dolar mep: ", dolar_mep)
+invested = 0
+actual_values = 0
 
 for cedear, values in cedears_dict.items():
-    print(f"{cedear}: {values['Neto']} vs {cedear_usd_value_now(values['Ticker'], values['Cantidad'], dolar_mep)}")
+    invested +=  values['mep_value']
+    actual_usd_cedear_value = cedear_usd_value_now(values['Ticker'], values['Cantidad'], dolar_mep)
+    actual_values +=  actual_usd_cedear_value
+    print(f"{cedear}: {round(values['mep_value'], 2)} vs {round(actual_usd_cedear_value,2)}")
+   
+print(f"SUMMARY: invested {round(invested, 2)} vs actual {round(actual_values,2)}")
+print(f"with profit of {round(actual_values-invested, 2)} ({round((actual_values*100/invested)- 100, 2)}%)")
+
+ 
 # tickers = processTickers(notes)
 # print(tickers)
 # print('')
