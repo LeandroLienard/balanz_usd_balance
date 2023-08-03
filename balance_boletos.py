@@ -2,6 +2,7 @@ import requests
 import json
 import time
 import datetime
+import matplotlib.pyplot as plt
 
 
 import pandas as pd
@@ -131,9 +132,7 @@ def cedear_usd_value_now(cedear, cantidad, dolar_mep_now):
     return one_cedear_in_mep * cantidad
 
 # ----------------------------------------------------------------------------------------------------- #
-# TODO: Hacer que el programa reciba x parametro 
-
-archivo = '/home/leanutn/Documentos/balanz manager/boletos.xlsx'
+archivo = '/home/leandrolienard/utn-repos/balanz_usd_balance/boletos.xlsx'
 
 df = pd.read_excel(archivo) #dataframe
 
@@ -174,17 +173,27 @@ print(get_dolar_mep_now())
 # con ese campo en dolares + si COMPRA, - si VENTA 
 dolar_mep = get_dolar_mep_now()
 print("Ultimo dolar mep: ", dolar_mep)
-invested = 0
+investment_list = list()
 actual_values = 0
 
 for cedear, values in cedears_dict.items():
-    invested +=  values['mep_value']
+    investment_list.append( values['mep_value'])
     actual_usd_cedear_value = cedear_usd_value_now(values['Ticker'], values['Cantidad'], dolar_mep)
     actual_values +=  actual_usd_cedear_value
     print(f"{cedear}: {round(values['mep_value'], 2)} vs {round(actual_usd_cedear_value,2)}")
    
-print(f"SUMMARY: invested {round(invested, 2)} vs actual {round(actual_values,2)}")
-print(f"with profit of {round(actual_values-invested, 2)} ({round((actual_values*100/invested)- 100, 2)}%)")
+total_invested = sum(investment_list)
+print(f"SUMMARY: invested {round(total_invested , 2)} vs actual {round(actual_values,2)}")
+print(f"with profit of {round(actual_values-total_invested , 2)} ({round((actual_values*100/total_invested)- 100, 2)}%)")
+
+
+manzanas = [20,10]
+nombres = ["Ana","Juan"]
+# list1 = cedears_dict.values()
+# list1.map(lambda cedear: cedear['Especie'] )
+plt.pie(investment_list, labels = cedears_dict.keys(), autopct="%0.1f %%")
+plt.axis("equal")
+plt.show()
 
  
 # tickers = processTickers(notes)
