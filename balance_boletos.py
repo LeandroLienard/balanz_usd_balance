@@ -133,7 +133,7 @@ def cedear_usd_value_now(cedear, cantidad, dolar_mep_now):
 # ----------------------------------------------------------------------------------------------------- #
 # TODO: Hacer que el programa reciba x parametro 
 
-archivo = '/home/leanutn/Documentos/balanz manager/boletos.xlsx'
+archivo = 'boletos_example.xlsx'
 
 df = pd.read_excel(archivo) #dataframe
 
