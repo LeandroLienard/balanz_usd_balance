@@ -15,10 +15,23 @@ AMBITO_MEP_HIST = 'https://mercados.ambito.com//dolarrava/mep/historico-general/
 HEADERS = {'Accept': 'application/json'}
 payload = {}
 
-def get_dolar_mep_at(anio, mes, dia):
-    cotizacion = get_dolar_mep_request(anio, mes, dia) 
-    return convert_to_float(cotizacion[-1])
-        
+
+#given a sting with comma decimal format ej: 1,5 -> float
+def convert_to_float(string_number):
+    correct_format_string_number = string_number.replace(",", ".")
+    return float(correct_format_string_number)
+
+def getStringToday():
+    named_tuple = time.localtime() # get struct_time
+    return time.strftime("%Y-%m-%d", named_tuple)
+
+def get_tomorrow(a_date): # datetime should be a datetime
+    next_days = datetime.timedelta(days = 1)
+    return (a_date - next_days).date()
+
+def getNDaysAgoDate(a_date, n): # datetime should be a datetime
+    daysAgo = datetime.timedelta(days = n)
+    return (a_date - daysAgo).date()
 
 def get_dolar_mep_request(anio, mes, dia): # no discrimina si recibe '07' ó '7' 
     to_date = datetime.datetime(int(anio), int(mes), int(dia) + 1) # TODO: poner un mas 2 y cambiar la api de los cedears
@@ -32,6 +45,9 @@ def get_dolar_mep_request(anio, mes, dia): # no discrimina si recibe '07' ó '7'
       cotizacion_list = response.text
     return json.loads(cotizacion_list)[1] #quedamos el 1 porque [["Fecha","Referencia"],["26\/07\/2023","503,90"],["25\/07\/2023","507,12"]
     
+def get_dolar_mep_at(anio, mes, dia):
+    cotizacion = get_dolar_mep_request(anio, mes, dia) 
+    return convert_to_float(cotizacion[-1])    
 
 def add_mep_value(ticker):
     date_list = ticker['Liquidacion'].split("-")
@@ -51,27 +67,6 @@ def add_mep_value(ticker):
         #     ticker['mep_value'] = 
     return ticker
 
-
-
-def getStringToday():
-    named_tuple = time.localtime() # get struct_time
-    return time.strftime("%Y-%m-%d", named_tuple)
-
-def get_tomorrow(a_date): # datetime should be a datetime
-    next_days = datetime.timedelta(days = 1)
-    return (a_date - next_days).date()
-
-def getNDaysAgoDate(a_date, n): # datetime should be a datetime
-    daysAgo = datetime.timedelta(days = n)
-    return (a_date - daysAgo).date()
-
 def get_dolar_mep_now():
     today_list = getStringToday().split("-")
     return get_dolar_mep_at(today_list[0], today_list[1], int(today_list[2]))
-
-#given a sting with comma decimal format ej: 1,5 -> float
-def convert_to_float(string_number):
-    correct_format_string_number = string_number.replace(",", ".")
-    return float(correct_format_string_number)
-
-# ----------------------------------------------------------------------------------------------------- #
