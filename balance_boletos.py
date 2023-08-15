@@ -3,9 +3,9 @@ import json
 import time
 import datetime
 import matplotlib.pyplot as plt
-
-
 import pandas as pd
+import  ambito_service as ambito  
+import  yahoo_finance as yf  
 
 
 def getBoleto(fila):
@@ -50,23 +50,6 @@ AMBITO_MEP_HIST = 'https://mercados.ambito.com//dolarrava/mep/historico-general/
 MERVAL_HIST = 'https://analisistecnico.com.ar/services/datafeed/history?symbol={cedear}%3ACEDEAR&resolution=D&from={from_date}&to={to_date}' # dates in epoch
 HEADERS = {'Accept': 'application/json'}
 payload = {}
-
-def get_dolar_mep(anio, mes, dia):
-    cotizacion = get_dolar_mep_request(anio, mes, dia) 
-    return convert_to_float(cotizacion[-1])
-    
-
-def get_dolar_mep_request(anio, mes, dia): # no discrimina si recibe '07' ó '7' 
-    to_date = datetime.datetime(int(anio), int(mes), int(dia) + 1)
-    # pedimos cotizacion de hoy a 4 dias atras porque el mep opera de lun-viernes no feriados
-    from_date = getNDaysAgoDate(to_date, DAYS_AGO)    
-    URL_MEP  = AMBITO_MEP_HIST.format(from_date = from_date, to_date = to_date.date()) 
-    response = requests.get(URL_MEP, headers=HEADERS,  data=payload)
-    
-    print(response.text)
-    if response.status_code == 200:
-      cotizacion_list = response.text
-    return json.loads(cotizacion_list)[1] #quedamos el 1 porque [["Fecha","Referencia"],["26\/07\/2023","503,90"],["25\/07\/2023","507,12"]
     
 def es_cedear(ticker):
     return (ticker['Ticker'] != GD30)  & ticker['Especie'].map(is_not_ON, na_action='ignore')  #(ticker['Ticker'] != MTCGO)
@@ -76,7 +59,7 @@ def is_not_ON(a_string):
 
 def add_mep_value(ticker):
     date_list = ticker['Liquidacion'].split("-")
-    mep_at_day = get_dolar_mep(date_list[0], date_list[1], date_list[2])    
+    mep_at_day = ambito.get_dolar_mep(date_list[0], date_list[1], date_list[2])    
     if(ticker['Moneda'] == 'Dólares'):
         if(ticker['Tipo'] == COMPRA):
             ticker['mep_value'] = ticker['Neto'] #TODO: agregar como seria en pesos y ventas 
@@ -99,14 +82,6 @@ def getStringToday():
     named_tuple = time.localtime() # get struct_time
     return time.strftime("%Y-%m-%d", named_tuple)
 
-def getNDaysAgoDate(a_date, n): # datetime should be a datetime
-    daysAgo = datetime.timedelta(days = n)
-    return (a_date - daysAgo).date()
-
-def get_dolar_mep_now():
-    today_list = getStringToday().split("-")
-    return get_dolar_mep(today_list[0], today_list[1], int(today_list[2]))
-
 def get_pesos_cedear_value(cedear): # en pesos
     epoch_today= getEpochToday() 
     MERVAL_URL = MERVAL_HIST.format(cedear = cedear, from_date = epoch_today - DAYS_AGO * EPOCH_DAY, to_date = epoch_today)
@@ -117,7 +92,7 @@ def get_pesos_cedear_value(cedear): # en pesos
         cotizacion_json = json.loads(cotizacion_list)
         cedear_value = float(cotizacion_json['o'][-1])
         print("cedear ", cedear, " value: $", cedear_value)
-        return cedear_value # devolvemos el ultimo valor entre hoy y 4 dias anteriores de 'o' open
+        return cedear_value # devolvemos el ultimo valor entre hoy y 4 dias anteriores de 'c' open
     else:
         print("Error with cedear: ", cedear, " with reponse: ", response)
         return -1.0
@@ -132,11 +107,11 @@ def cedear_usd_value_now(cedear, cantidad, dolar_mep_now):
     return one_cedear_in_mep * cantidad
 
 # ----------------------------------------------------------------------------------------------------- #
-archivo = '/home/leandrolienard/utn-repos/balanz_usd_balance/boletos_example.xlsx'
+archivo = '/home/leandrolienard/utn-repos/balanz_usd_balance/boletos.xlsx'
 
 df = pd.read_excel(archivo) #dataframe
 
-print (df.describe)
+print(df.describe)
 cedears_df = df[es_cedear] # filtro solo me quedo con cedears
 
 cedears_list = map_to_object(cedears_df)
@@ -168,10 +143,10 @@ for cedear in cedears_list:
 
 
 print("Cedears dict: ", cedears_dict)
-print(get_dolar_mep_now())
+print(ambito.get_dolar_mep_now())
 # mapeear cada objeto. Agregarle un campo de valor en dolares
 # con ese campo en dolares + si COMPRA, - si VENTA 
-dolar_mep = get_dolar_mep_now()
+dolar_mep = ambito.get_dolar_mep_now()
 print("Ultimo dolar mep: ", dolar_mep)
 investment_list = list()
 actual_values = 0
