@@ -106,7 +106,9 @@ def cedear_usd_value_now(cedear, cantidad, dolar_mep_now):
     return one_cedear_in_mep * cantidad
 
 # ----------------------------------------------------------------------------------------------------- #
-archivo = '/home/leandrolienard/utn-repos/balanz_usd_balance/boletos.xlsx'
+# TODO: Hacer que el programa reciba x parametro 
+
+archivo = 'boletos_example.xlsx'
 
 df = pd.read_excel(archivo) #dataframe
 
