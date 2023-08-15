@@ -1,7 +1,6 @@
 import requests
 import json
 import time
-import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 import  ambito_service as ambito  
