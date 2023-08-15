@@ -3,8 +3,8 @@ import json
 import time
 import matplotlib.pyplot as plt
 import pandas as pd
-import  ambito_service as ambito  
-import  yahoo_finance as yf  
+import ambito_service as ambito  
+import yahoo_finance as yf  
 
 
 def getBoleto(fila):
@@ -43,8 +43,6 @@ ON = 'ON'
 
 EPOCH_DAY = 86400 # seconds in a day
 DAYS_AGO = 4
-# AMBITO_MEP_HIST_EJ = 'https://mercados.ambito.com//dolarrava/mep/historico-general/2023-06-22/2023-06-23'
-AMBITO_MEP_HIST = 'https://mercados.ambito.com//dolarrava/mep/historico-general/{from_date}/{to_date}'
 # https://www.reddit.com/r/merval/comments/npi3j8/api_con_informaci%C3%B3n_hist%C3%B3rica_de_cedears/
 MERVAL_HIST = 'https://analisistecnico.com.ar/services/datafeed/history?symbol={cedear}%3ACEDEAR&resolution=D&from={from_date}&to={to_date}' # dates in epoch
 HEADERS = {'Accept': 'application/json'}
@@ -58,7 +56,7 @@ def is_not_ON(a_string):
 
 def add_mep_value(ticker):
     date_list = ticker['Liquidacion'].split("-")
-    mep_at_day = ambito.get_dolar_mep(date_list[0], date_list[1], date_list[2])    
+    mep_at_day = ambito.get_dolar_mep_at(date_list[0], date_list[1], date_list[2])    
     if(ticker['Moneda'] == 'Dólares'):
         if(ticker['Tipo'] == COMPRA):
             ticker['mep_value'] = ticker['Neto'] #TODO: agregar como seria en pesos y ventas 
@@ -108,7 +106,7 @@ def cedear_usd_value_now(cedear, cantidad, dolar_mep_now):
 # ----------------------------------------------------------------------------------------------------- #
 # TODO: Hacer que el programa reciba x parametro 
 
-archivo = 'boletos_example.xlsx'
+archivo = 'boletos.xlsx'
 
 df = pd.read_excel(archivo) #dataframe
 
@@ -156,15 +154,13 @@ for cedear, values in cedears_dict.items():
     investment_list.append( values['mep_value'])
     actual_usd_cedear_value = cedear_usd_value_now(values['Ticker'], values['Cantidad'], dolar_mep)
     actual_values +=  actual_usd_cedear_value
-    print(f"{cedear}: {round(values['mep_value'], 2)} vs {round(actual_usd_cedear_value,2)}")
+    print(f"{cedear}: {round(values['mep_value'], 2)} vs {round(actual_usd_cedear_value, 2)}")
    
 total_invested = sum(investment_list)
-print(f"SUMMARY: invested {round(total_invested , 2)} vs actual {round(actual_values,2)}")
-print(f"with profit of {round(actual_values-total_invested , 2)} ({round((actual_values*100/total_invested)- 100, 2)}%)")
+print(f"SUMMARY: invested {round(total_invested, 2)} vs actual {round(actual_values,2)}")
+print(f"with profit of {round(actual_values-total_invested, 2)} ({round((actual_values*100/total_invested)- 100, 2)}%)")
 
 
-manzanas = [20,10]
-nombres = ["Ana","Juan"]
 # list1 = cedears_dict.values()
 # list1.map(lambda cedear: cedear['Especie'] )
 plt.pie(investment_list, labels = cedears_dict.keys(), autopct="%0.1f %%")

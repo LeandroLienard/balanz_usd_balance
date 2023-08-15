@@ -15,7 +15,7 @@ AMBITO_MEP_HIST = 'https://mercados.ambito.com//dolarrava/mep/historico-general/
 HEADERS = {'Accept': 'application/json'}
 payload = {}
 
-def get_dolar_mep(anio, mes, dia):
+def get_dolar_mep_at(anio, mes, dia):
     cotizacion = get_dolar_mep_request(anio, mes, dia) 
     return convert_to_float(cotizacion[-1])
         
@@ -35,7 +35,7 @@ def get_dolar_mep_request(anio, mes, dia): # no discrimina si recibe '07' ó '7'
 
 def add_mep_value(ticker):
     date_list = ticker['Liquidacion'].split("-")
-    mep_at_day = get_dolar_mep(date_list[0], date_list[1], date_list[2])    
+    mep_at_day = get_dolar_mep_at(date_list[0], date_list[1], date_list[2])    
     if(ticker['Moneda'] == 'Dólares'):
         if(ticker['Tipo'] == COMPRA):
             ticker['mep_value'] = ticker['Neto'] #TODO: agregar como seria en pesos y ventas 
@@ -67,7 +67,7 @@ def getNDaysAgoDate(a_date, n): # datetime should be a datetime
 
 def get_dolar_mep_now():
     today_list = getStringToday().split("-")
-    return get_dolar_mep(today_list[0], today_list[1], int(today_list[2]))
+    return get_dolar_mep_at(today_list[0], today_list[1], int(today_list[2]))
 
 #given a sting with comma decimal format ej: 1,5 -> float
 def convert_to_float(string_number):
